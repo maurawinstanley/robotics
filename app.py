@@ -2,13 +2,16 @@
 import sqlite3
 import service
 #import request
+from flask import send_file
 from flask import request, render_template, jsonify, Flask , session, url_for , redirect
+
 from flask_dropzone import Dropzone
 
 from flask_uploads import UploadSet, configure_uploads, IMAGES, patch_request_class
 import os
 from flask import Flask, request, redirect, url_for
 from werkzeug.utils import secure_filename
+from io import BytesIO
 
 app = Flask(__name__)
 dropzone = Dropzone(app)
@@ -39,6 +42,10 @@ UPLOAD_FOLDER = '/Documents/robo/'
 ALLOWED_EXTENSIONS = set(['txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif'])
 
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+urls = None 
+
+
+
 
 @app.route('/upload_image', methods = ["POST"])
 def upload_file():
@@ -80,6 +87,7 @@ def index():
         session['file_urls'] = []
     # list to hold our uploaded image urls
     file_urls = session['file_urls']
+    global file_url_global
 
     # handle image upload from Dropszone
     if request.method == 'POST':
@@ -97,6 +105,8 @@ def index():
             file_urls.append(photos.url(filename))
             
         session['file_urls'] = file_urls
+        file_url_global = file_urls
+        urls = file_urls
         return "uploading..."
     # return dropzone template on GET request    
     return render_template('index.html')
@@ -110,23 +120,33 @@ def results():
         return redirect(url_for('index'))
         
     # set the file_urls and remove the session variable
+    
     file_urls = session['file_urls']
+    file_url_global = file_urls
     session.pop('file_urls', None)
     
     return render_template('results.html', file_urls=file_urls)
 
-@app.route('/images', methods=['GET', 'POST'])
-def results():
-    
+
+
+
+
+@app.route('/images', methods=['GET'])
+def images():
+    print("urls: ", urls)
+    print("in the image function")
     # redirect to home if no images to display
-    if "file_urls" not in session or session['file_urls'] == []:
-        return redirect(url_for('index'))
+    #if "file_urls" not in session or session['file_urls'] == []:
+        #return redirect(url_for('index'))
         
     # set the file_urls and remove the session variable
-    file_urls = session['file_urls']
+    #file_urls = session['file_urls']
+    print(file_url_global[0], " is file url ")
     session.pop('file_urls', None)
-    
-    return file_urls
+    #print(file_urls, " is the file url ")
+    return file_url_global[0]
+    return send_file(file_url_global[0], mimetype = 'image/png')
+    #return send_file(file_url_global[0], mimetype='image/png', attachment_filename="img2.jpg", as_attachment=True)
 
 
 
@@ -179,6 +199,18 @@ class Schema:
         );
         """
 
+'''important: 
+to get the image downloaded: 
+import shutil
+
+import requests
+url = "http://localhost:5000/images"
+new_url = requests.get(url)
+new_url = new_url.content.decode('utf-8')
+response = requests.get(new_url, stream=True)
+with open('img2.png', 'wb') as out_file:
+    shutil.copyfileobj(response.raw, out_file)
+    '''
 
 
 
